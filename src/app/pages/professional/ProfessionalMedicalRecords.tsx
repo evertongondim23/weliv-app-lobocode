@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ClipboardList,
   Search,
@@ -11,9 +11,12 @@ import {
   Plus,
   Pencil,
   Trash2,
+  FileText,
+  Upload,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
+import { useData } from '../../contexts/DataContext';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
@@ -45,6 +48,8 @@ import {
   createMedicalRecord,
   updateMedicalRecord,
   deleteMedicalRecord,
+  addMedicalRecordPdf,
+  removeMedicalRecordPdf,
   type MedicalRecord,
   type MedicalRecordWriteInput,
   type MedicationEntry,
@@ -175,7 +180,9 @@ function formToWriteInput(f: FormState): MedicalRecordWriteInput | null {
 
 export function ProfessionalMedicalRecords() {
   const { user } = useAuth();
+  const { uploadDocument } = useData();
   const professionalId = user?.id ?? '';
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   const [refreshKey, setRefreshKey] = useState(0);
   const bump = () => setRefreshKey((k) => k + 1);
@@ -285,6 +292,46 @@ export function ProfessionalMedicalRecords() {
       ...f,
       meds: f.meds.map((m, i) => (i === index ? { ...m, ...patch } : m)),
     }));
+  };
+
+  const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !selected || !professionalId) return;
+    if (file.type !== 'application/pdf') {
+      toast.error('Envie apenas arquivos PDF.');
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const updated = addMedicalRecordPdf(selected.id, professionalId, file.name, url);
+    if (!updated) {
+      URL.revokeObjectURL(url);
+      toast.error('Não foi possível anexar o PDF.');
+      return;
+    }
+    uploadDocument({
+      patientId: selected.patientId,
+      professionalId,
+      type: 'other',
+      name: `Prontuário: ${file.name}`,
+      url,
+      status: 'ready',
+    });
+    toast.success('PDF anexado ao prontuário. Também disponível para o paciente em Meus documentos.');
+    bump();
+    setSelected(updated);
+  };
+
+  const handleRemovePdf = (attachmentId: string) => {
+    if (!selected || !professionalId) return;
+    const updated = removeMedicalRecordPdf(selected.id, professionalId, attachmentId);
+    if (!updated) {
+      toast.error('Não foi possível remover o anexo.');
+      return;
+    }
+    toast.success('PDF removido do prontuário.');
+    bump();
+    setSelected(updated);
   };
 
   if (!professionalId) {
@@ -550,6 +597,83 @@ export function ProfessionalMedicalRecords() {
                     </ul>
                   </div>
                 ) : null}
+
+                <div
+                  className="rounded-lg border p-3 space-y-3"
+                  style={{ borderColor: 'rgba(255, 165, 0, 0.28)', background: '#FFFBF5' }}
+                >
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <p className="text-xs font-semibold uppercase tracking-wide flex items-center gap-2" style={{ color: '#6B5D53' }}>
+                      <FileText className="size-4 text-[#FFA500]" />
+                      Documentos PDF (prontuário)
+                    </p>
+                    <input
+                      ref={pdfInputRef}
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      className="hidden"
+                      onChange={handlePdfUpload}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="border-2 shrink-0"
+                      style={fieldStyle}
+                      onClick={() => pdfInputRef.current?.click()}
+                    >
+                      <Upload className="size-3.5 mr-1.5" />
+                      Enviar PDF
+                    </Button>
+                  </div>
+                  <p className="text-[11px] leading-snug" style={{ color: '#6B5D53' }}>
+                    Arquivos ficam ligados a este prontuário. O mesmo arquivo é registrado em{' '}
+                    <strong>Meus documentos</strong> do paciente (categoria Outros, nesta demo).
+                  </p>
+                  {(selected.pdfAttachments ?? []).length === 0 ? (
+                    <p className="text-sm py-2 text-center border border-dashed rounded-md" style={{ color: '#6B5D53', borderColor: 'rgba(255, 165, 0, 0.25)' }}>
+                      Nenhum PDF anexado ainda.
+                    </p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {(selected.pdfAttachments ?? []).map((doc) => (
+                        <li
+                          key={doc.id}
+                          className="flex items-center justify-between gap-2 rounded-md border bg-white px-3 py-2"
+                          style={{ borderColor: 'rgba(255, 165, 0, 0.2)' }}
+                        >
+                          <div className="min-w-0 flex items-center gap-2">
+                            <FileText className="size-4 shrink-0 text-red-600" />
+                            <div className="min-w-0">
+                              <a
+                                href={doc.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm font-medium truncate block hover:underline"
+                                style={{ color: '#4A3728' }}
+                              >
+                                {doc.name}
+                              </a>
+                              <span className="text-[10px]" style={{ color: '#6B5D53' }}>
+                                {formatDate(doc.uploadedAt)}
+                              </span>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="size-8 shrink-0 text-red-600 hover:bg-red-50"
+                            aria-label="Remover PDF"
+                            onClick={() => handleRemovePdf(doc.id)}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
 
                 <p
                   className="text-[11px] pt-2 border-t"

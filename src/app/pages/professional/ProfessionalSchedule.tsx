@@ -11,14 +11,14 @@ import { Clock, User, Phone, Mail, CheckCircle2, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { generateAvailableSlots, mockPatients } from '../../data/mockData';
-import { WelcomeCard } from '../../components/common';
+import { ProfessionalAgendaBlocksPanel } from '../../components/professional/ProfessionalAgendaBlocksPanel';
 
 export function ProfessionalSchedule() {
   const { user } = useAuth();
   const { appointments, professionals, updateAppointment } = useData();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
-  const professional = professionals.find(p => p.id === user?.id);
+  const professional = professionals.find((p) => p.id === user?.id);
   const myAppointments = appointments.filter(apt => apt.professionalId === user?.id);
   
   const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -343,6 +343,12 @@ export function ProfessionalSchedule() {
           </CardContent>
         </Card>
       </div>
+
+      {user?.id ? (
+        <section aria-label="Bloqueios e lembretes da agenda">
+          <ProfessionalAgendaBlocksPanel professionalId={user.id} />
+        </section>
+      ) : null}
     </div>
   );
 }

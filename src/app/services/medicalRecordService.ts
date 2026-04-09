@@ -4,6 +4,14 @@ export type MedicationEntry = {
   since: string;
 };
 
+/** PDF anexado ao prontuário pelo profissional (URL local em demo). */
+export type MedicalRecordPdfAttachment = {
+  id: string;
+  name: string;
+  url: string;
+  uploadedAt: string;
+};
+
 export type MedicalRecord = {
   id: string;
   professionalId: string;
@@ -19,6 +27,7 @@ export type MedicalRecord = {
   chiefComplaint: string;
   clinicalSummary: string;
   updatedAt: string;
+  pdfAttachments: MedicalRecordPdfAttachment[];
 };
 
 /** Payload para criar ou substituir um prontuário (sem id / professionalId / updatedAt). */
@@ -56,6 +65,7 @@ const medicalRecordsSeed: MedicalRecord[] = [
     clinicalSummary:
       'Paciente relata episódios de dor retroesternal de início recente, ECG de triagem sem alterações agudas. Encaminhado para ecocardiograma e teste ergométrico; orientações sobre sinais de alarme.',
     updatedAt: '2026-03-18T15:00:00Z',
+    pdfAttachments: [],
   },
   {
     id: 'mr-002',
@@ -75,6 +85,7 @@ const medicalRecordsSeed: MedicalRecord[] = [
     clinicalSummary:
       'PA 128x82 mmHg em consulta; sem queixas cardiológicas atuais. Mantém hábitos. Resultados de laboratório dentro do esperado para perfil; continuar monitorização anual.',
     updatedAt: '2026-02-10T10:00:00Z',
+    pdfAttachments: [],
   },
   {
     id: 'mr-003',
@@ -95,6 +106,7 @@ const medicalRecordsSeed: MedicalRecord[] = [
     clinicalSummary:
       'Glicemia de jejum 142 mg/dL na medição ambulatorial. Exame físico: sensibilidade preservada monofilamento; pulsos pediosos presentes. Ajuste nutricional reforçado; manter esquema atual e reavaliar exames em 90 dias.',
     updatedAt: '2026-03-02T12:30:00Z',
+    pdfAttachments: [],
   },
   {
     id: 'mr-004',
@@ -112,6 +124,7 @@ const medicalRecordsSeed: MedicalRecord[] = [
     clinicalSummary:
       'Avaliação cardiológica para cirurgia eletiva: ecg e ecocardiograma normais para idade, sem fatores de risco cardiovascular adicionais. Parecer favorável com recomendações de jejum e hidratação conforme equipe cirúrgica.',
     updatedAt: '2026-01-22T16:40:00Z',
+    pdfAttachments: [],
   },
 ];
 
@@ -121,6 +134,7 @@ function deepCloneRecords(source: MedicalRecord[]): MedicalRecord[] {
     allergies: [...r.allergies],
     chronicConditions: [...r.chronicConditions],
     currentMedications: r.currentMedications.map((m) => ({ ...m })),
+    pdfAttachments: (r.pdfAttachments ?? []).map((a) => ({ ...a })),
   }));
 }
 
@@ -139,7 +153,14 @@ export function listMedicalRecordsByProfessional(professionalId: string): Medica
 
 export function getMedicalRecordById(id: string): MedicalRecord | undefined {
   const row = mutableRecords.find((record) => record.id === id);
-  return row ? { ...row, allergies: [...row.allergies], chronicConditions: [...row.chronicConditions], currentMedications: row.currentMedications.map((m) => ({ ...m })) } : undefined;
+  if (!row) return undefined;
+  return {
+    ...row,
+    allergies: [...row.allergies],
+    chronicConditions: [...row.chronicConditions],
+    currentMedications: row.currentMedications.map((m) => ({ ...m })),
+    pdfAttachments: (row.pdfAttachments ?? []).map((a) => ({ ...a })),
+  };
 }
 
 export function getMedicalRecordsForPatient(professionalId: string, patientId: string): MedicalRecord[] {
@@ -168,6 +189,7 @@ export function createMedicalRecord(
     chiefComplaint: input.chiefComplaint.trim(),
     clinicalSummary: input.clinicalSummary.trim(),
     updatedAt: now,
+    pdfAttachments: [],
   };
   mutableRecords = [...mutableRecords, record];
   return record;
@@ -180,6 +202,7 @@ export function updateMedicalRecord(
 ): MedicalRecord | null {
   const idx = mutableRecords.findIndex((r) => r.id === id && r.professionalId === professionalId);
   if (idx === -1) return null;
+  const prev = mutableRecords[idx];
   const now = new Date().toISOString();
   const updated: MedicalRecord = {
     id,
@@ -196,15 +219,70 @@ export function updateMedicalRecord(
     chiefComplaint: input.chiefComplaint.trim(),
     clinicalSummary: input.clinicalSummary.trim(),
     updatedAt: now,
+    pdfAttachments: (prev.pdfAttachments ?? []).map((a) => ({ ...a })),
   };
   mutableRecords = mutableRecords.slice(0, idx).concat(updated, mutableRecords.slice(idx + 1));
   return updated;
 }
 
 export function deleteMedicalRecord(id: string, professionalId: string): boolean {
+  const row = mutableRecords.find((r) => r.id === id && r.professionalId === professionalId);
+  if (row) {
+    for (const a of row.pdfAttachments ?? []) {
+      if (a.url.startsWith('blob:')) URL.revokeObjectURL(a.url);
+    }
+  }
   const before = mutableRecords.length;
   mutableRecords = mutableRecords.filter((r) => !(r.id === id && r.professionalId === professionalId));
   return mutableRecords.length < before;
+}
+
+function nextPdfId() {
+  return `pdf-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+export function addMedicalRecordPdf(
+  recordId: string,
+  professionalId: string,
+  name: string,
+  url: string,
+): MedicalRecord | null {
+  const idx = mutableRecords.findIndex((r) => r.id === recordId && r.professionalId === professionalId);
+  if (idx === -1) return null;
+  const prev = mutableRecords[idx];
+  const attachment: MedicalRecordPdfAttachment = {
+    id: nextPdfId(),
+    name: name.trim() || 'documento.pdf',
+    url,
+    uploadedAt: new Date().toISOString(),
+  };
+  const updated: MedicalRecord = {
+    ...prev,
+    pdfAttachments: [...(prev.pdfAttachments ?? []), attachment],
+    updatedAt: new Date().toISOString(),
+  };
+  mutableRecords = mutableRecords.slice(0, idx).concat(updated, mutableRecords.slice(idx + 1));
+  return updated;
+}
+
+export function removeMedicalRecordPdf(
+  recordId: string,
+  professionalId: string,
+  attachmentId: string,
+): MedicalRecord | null {
+  const idx = mutableRecords.findIndex((r) => r.id === recordId && r.professionalId === professionalId);
+  if (idx === -1) return null;
+  const prev = mutableRecords[idx];
+  const att = (prev.pdfAttachments ?? []).find((a) => a.id === attachmentId);
+  if (att?.url.startsWith('blob:')) URL.revokeObjectURL(att.url);
+  const filtered = (prev.pdfAttachments ?? []).filter((a) => a.id !== attachmentId);
+  const updated: MedicalRecord = {
+    ...prev,
+    pdfAttachments: filtered,
+    updatedAt: new Date().toISOString(),
+  };
+  mutableRecords = mutableRecords.slice(0, idx).concat(updated, mutableRecords.slice(idx + 1));
+  return updated;
 }
 
 /** Apenas para testes ou reset de demo. */

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -9,10 +9,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar'
 import { Badge } from '../../components/ui/badge';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
-import { MapPin, DollarSign, Clock, CheckCircle2, AlertCircle, CreditCard, ArrowLeft } from 'lucide-react';
+import { MapPin, DollarSign, Clock, CheckCircle2, AlertCircle, CreditCard, ArrowLeft, Ban } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { generateAvailableSlots } from '../../data/mockData';
+import { getPatientSlotAvailability } from '../../data/mockData';
 import { toast } from 'sonner';
 
 export function BookAppointment() {
@@ -56,7 +56,29 @@ export function BookAppointment() {
   );
   const isRescheduling = Boolean(originalAppointment);
 
-  const availableSlots = selectedDate ? generateAvailableSlots(professional, selectedDate) : [];
+  const selectedDateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '';
+
+  const bookedTimesForDay = useMemo(() => {
+    if (!selectedDate) return [];
+    return appointments
+      .filter(
+        (apt) =>
+          apt.professionalId === professional.id &&
+          apt.date === selectedDateStr &&
+          apt.status !== 'cancelled',
+      )
+      .map((apt) => apt.time);
+  }, [appointments, professional.id, selectedDate, selectedDateStr]);
+
+  const slotRows = useMemo(() => {
+    if (!selectedDate) return [];
+    return getPatientSlotAvailability(professional, selectedDate, bookedTimesForDay);
+  }, [professional, selectedDate, bookedTimesForDay]);
+
+  const availableSlots = useMemo(
+    () => slotRows.filter((r) => r.status === 'available').map((r) => r.slot),
+    [slotRows],
+  );
   
   const depositAmount = professional.consultationPrice * (professional.depositPercentage / 100);
   const requiresDeposit = professional.depositPercentage > 0;
@@ -83,11 +105,12 @@ export function BookAppointment() {
   useEffect(() => {
     if (!selectedDate || !selectedTime) return;
 
-    if (!availableSlots.includes(selectedTime)) {
+    const row = slotRows.find((r) => r.slot === selectedTime);
+    if (!row || row.status !== 'available') {
       setSelectedTime(undefined);
-      toast.info('O horário anterior não está disponível para essa data. Escolha outro horário.');
+      toast.info('Esse horário não está mais disponível. Escolha outro.');
     }
-  }, [selectedDate, selectedTime, availableSlots]);
+  }, [selectedDate, selectedTime, slotRows]);
 
   const handleConfirmBooking = () => {
     if (!selectedDate || !selectedTime) {
@@ -215,12 +238,19 @@ export function BookAppointment() {
               </AvatarFallback>
             </Avatar>
 
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <h1 className="text-2xl font-bold mb-1" style={{ color: '#4A3728' }}>{professional.name}</h1>
-              <p className="text-muted-foreground mb-2">{professional.registrationNumber}</p>
-              <Badge style={{ background: 'linear-gradient(135deg, #FFA500, #FF8C00)', color: 'white', border: 'none' }}>
+              <p className="text-sm mb-1" style={{ color: '#6B5D53' }}>
+                {professional.professionalTitle?.trim() || professional.registrationNumber}
+              </p>
+              <Badge className="mb-2" style={{ background: 'linear-gradient(135deg, #FFA500, #FF8C00)', color: 'white', border: 'none' }}>
                 {professional.specialty}
               </Badge>
+              {professional.biography?.trim() ? (
+                <p className="text-sm leading-relaxed line-clamp-4" style={{ color: '#6B5D53' }}>
+                  {professional.biography.trim()}
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -293,9 +323,33 @@ export function BookAppointment() {
                 </div>
                 <p>Selecione uma data para ver os horários disponíveis</p>
               </div>
-            ) : availableSlots.length === 0 ? (
+            ) : slotRows.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4">Nenhum horário disponível nesta data</p>
+                <p className="text-muted-foreground mb-4">
+                  Nenhum horário neste dia (agenda fechada ou sem expediente).
+                </p>
+                {professional.waitingListEnabled && (
+                  <Button
+                    variant="outline"
+                    className="border-2 hover:bg-[#FFF8E7]"
+                    style={{ borderColor: 'rgba(255, 165, 0, 0.2)', color: '#4A3728' }}
+                    onClick={() => setShowWaitingListDialog(true)}
+                  >
+                    Entrar na fila de espera
+                  </Button>
+                )}
+              </div>
+            ) : availableSlots.length === 0 ? (
+              <div className="text-center py-8 space-y-3">
+                <div className="inline-flex items-center justify-center rounded-full bg-[#F3F4F6] p-3">
+                  <Ban className="size-6 text-[#6B7280]" />
+                </div>
+                <p className="font-medium" style={{ color: '#4A3728' }}>
+                  Todos os horários indisponíveis nesta data
+                </p>
+                <p className="text-sm text-muted-foreground" style={{ color: '#6B5D53' }}>
+                  Pode ser bloqueio do profissional ou horários já reservados. Escolha outro dia.
+                </p>
                 {professional.waitingListEnabled && (
                   <Button
                     variant="outline"
@@ -308,22 +362,71 @@ export function BookAppointment() {
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-2.5 max-h-96 overflow-y-auto pr-1">
-                {availableSlots.map(slot => (
-                  <Button
-                    key={slot}
-                    variant={selectedTime === slot ? 'default' : 'outline'}
-                    className="w-full border-2"
-                    style={
-                      selectedTime === slot
-                        ? { background: 'linear-gradient(135deg, #FFA500, #FF8C00)', borderColor: 'transparent' }
-                        : { borderColor: 'rgba(255, 165, 0, 0.2)', color: '#4A3728' }
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-3 text-xs" style={{ color: '#6B5D53' }}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="size-2.5 rounded-sm bg-[#FFA500]" />
+                    Disponível
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="size-2.5 rounded-sm bg-[#9CA3AF]" />
+                    Indisponível (bloqueado)
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="size-2.5 rounded-sm bg-[#4A3728]/40" />
+                    Ocupado
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2.5 max-h-96 overflow-y-auto pr-1">
+                  {slotRows.map(({ slot, status }) => {
+                    if (status === 'available') {
+                      return (
+                        <Button
+                          key={slot}
+                          type="button"
+                          variant={selectedTime === slot ? 'default' : 'outline'}
+                          className="w-full border-2 h-auto py-2.5"
+                          style={
+                            selectedTime === slot
+                              ? {
+                                  background: 'linear-gradient(135deg, #FFA500, #FF8C00)',
+                                  borderColor: 'transparent',
+                                  color: 'white',
+                                }
+                              : { borderColor: 'rgba(255, 165, 0, 0.2)', color: '#4A3728' }
+                          }
+                          onClick={() => setSelectedTime(slot)}
+                        >
+                          {slot}
+                        </Button>
+                      );
                     }
-                    onClick={() => setSelectedTime(slot)}
-                  >
-                    {slot}
-                  </Button>
-                ))}
+                    if (status === 'blocked') {
+                      return (
+                        <div
+                          key={slot}
+                          className="flex flex-col items-center justify-center rounded-md border-2 border-dashed py-2.5 px-1 min-h-[42px] bg-[#F9FAFB]"
+                          style={{ borderColor: '#E5E7EB', color: '#9CA3AF' }}
+                          title="Indisponível — profissional bloqueou este horário"
+                        >
+                          <span className="text-xs font-medium line-through decoration-[#9CA3AF]">{slot}</span>
+                          <span className="text-[10px] font-medium mt-0.5">Indisp.</span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div
+                        key={slot}
+                        className="flex flex-col items-center justify-center rounded-md border-2 py-2.5 px-1 min-h-[42px] bg-[#F3F4F6]"
+                        style={{ borderColor: 'rgba(74, 55, 40, 0.12)', color: '#6B5D53' }}
+                        title="Horário já reservado"
+                      >
+                        <span className="text-xs font-medium opacity-70">{slot}</span>
+                        <span className="text-[10px] font-medium mt-0.5">Ocupado</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </CardContent>

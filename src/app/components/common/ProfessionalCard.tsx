@@ -9,6 +9,10 @@ interface ProfessionalCardProps {
   id: string;
   name: string;
   specialty: string;
+  /** Linha de credencial/registro exibida abaixo do nome. */
+  professionalTitle?: string;
+  /** Trecho da bio para a listagem (paciente). */
+  biography?: string;
   location: string;
   consultationPrice: number;
   rating: number;
@@ -21,6 +25,8 @@ export function ProfessionalCard({
   id,
   name,
   specialty,
+  professionalTitle,
+  biography,
   location,
   consultationPrice,
   rating,
@@ -55,9 +61,19 @@ export function ProfessionalCard({
                 <h3 className="text-xl font-bold mb-1" style={{ color: '#4A3728' }}>
                   {name}
                 </h3>
+                {professionalTitle?.trim() ? (
+                  <p className="text-xs md:text-sm mb-1 line-clamp-2" style={{ color: '#6B5D53' }}>
+                    {professionalTitle.trim()}
+                  </p>
+                ) : null}
                 <p className="text-sm font-medium mb-2" style={{ color: '#FFA500' }}>
                   {specialty}
                 </p>
+                {biography?.trim() ? (
+                  <p className="text-xs leading-relaxed line-clamp-3 mb-2" style={{ color: '#6B5D53' }}>
+                    {biography.trim()}
+                  </p>
+                ) : null}
               </div>
               <Badge 
                 variant={available ? 'default' : 'secondary'}

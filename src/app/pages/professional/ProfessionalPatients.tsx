@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import { Badge } from '../../components/ui/badge';
-import { Users, Plus, Search, Phone, Mail, FileText, Calendar, Edit, Trash2 } from 'lucide-react';
+import { Users, Search, Phone, Mail, FileText, Calendar, Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Patient } from '../../types';
 import { WelcomeCard } from '../../components/common';
@@ -22,9 +21,7 @@ interface PatientForm {
 }
 
 export function ProfessionalPatients() {
-  const { user } = useAuth();
   const { appointments } = useData();
-  const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -65,26 +62,6 @@ export function ProfessionalPatients() {
     patient.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     patient.cpf.includes(searchTerm)
   );
-
-  const handleAddPatient = () => {
-    if (!formData.name || !formData.phone || !formData.cpf || !formData.email) {
-      toast.error('Preencha todos os campos obrigatórios');
-      return;
-    }
-
-    const newPatient: Patient = {
-      id: `p${Date.now()}`,
-      ...formData,
-      role: 'patient',
-      appointments: [],
-      documents: [],
-    };
-
-    setPatients([...patients, newPatient]);
-    setShowAddDialog(false);
-    setFormData({ name: '', phone: '', cpf: '', email: '' });
-    toast.success('Paciente cadastrado com sucesso!');
-  };
 
   const handleEditPatient = () => {
     if (!selectedPatient || !formData.name || !formData.phone || !formData.cpf || !formData.email) {
@@ -213,53 +190,21 @@ export function ProfessionalPatients() {
       <WelcomeCard
         icon={Users}
         title="Gerenciar Pacientes"
-        subtitle="Cadastre e gerencie seus pacientes"
+        subtitle="Consulte e atualize dados dos seus pacientes"
       />
 
-      {/* Search and Add */}
+      {/* Busca */}
       <Card className="border-2" style={{ borderColor: 'rgba(255, 165, 0, 0.2)' }}>
         <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
-              <Input
-                placeholder="Buscar por nome, e-mail ou CPF..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 border-2"
-                style={{ borderColor: 'rgba(255, 165, 0, 0.2)' }}
-              />
-            </div>
-
-            <Dialog open={showAddDialog} onOpenChange={(open) => {
-              setShowAddDialog(open);
-              if (!open) resetForm();
-            }}>
-              <DialogTrigger asChild>
-                <Button
-                  className="w-full sm:w-auto"
-                  style={{ background: 'linear-gradient(135deg, #FFA500, #FF8C00)' }}
-                >
-                  <Plus className="size-4 mr-2" />
-                  Novo Paciente
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle style={{ color: '#4A3728' }}>Cadastrar Paciente</DialogTitle>
-                  <DialogDescription>
-                    Preencha os dados do novo paciente
-                  </DialogDescription>
-                </DialogHeader>
-                <PatientForm 
-                  onSubmit={handleAddPatient}
-                  onCancel={() => {
-                    setShowAddDialog(false);
-                    resetForm();
-                  }}
-                />
-              </DialogContent>
-            </Dialog>
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+            <Input
+              placeholder="Buscar por nome, e-mail ou CPF..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 border-2"
+              style={{ borderColor: 'rgba(255, 165, 0, 0.2)' }}
+            />
           </div>
         </CardContent>
       </Card>
@@ -269,7 +214,7 @@ export function ProfessionalPatients() {
         <EmptyState
           icon={Users}
           title={searchTerm ? "Nenhum paciente encontrado" : "Nenhum paciente cadastrado"}
-          description={searchTerm ? "Tente ajustar sua busca" : "Cadastre seu primeiro paciente para começar"}
+          description={searchTerm ? "Tente ajustar sua busca" : "Os pacientes atendidos aparecerão nesta lista."}
         />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

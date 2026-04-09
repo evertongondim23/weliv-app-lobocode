@@ -127,6 +127,8 @@ export function SearchProfessionals() {
               id={professional.id}
               name={professional.name}
               specialty={professional.specialty}
+              professionalTitle={professional.professionalTitle}
+              biography={professional.biography}
               location={professional.address}
               consultationPrice={professional.consultationPrice}
               rating={4.8}

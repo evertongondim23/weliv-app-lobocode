@@ -1,6 +1,44 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Appointment, Document, Notification, Payment, Professional, WaitingListEntry } from '../types';
+import {
+  Appointment,
+  Document,
+  Notification,
+  Payment,
+  Professional,
+  WaitingListEntry,
+  BlockedTime,
+  ScheduleReminder,
+} from '../types';
 import { mockAppointments, mockDocuments, mockNotifications, mockPayments, mockProfessionals } from '../data/mockData';
+
+function loadProfessionalsFromStorage(): Professional[] {
+  try {
+    const raw = localStorage.getItem('weliv_professionals');
+    if (!raw) return mockProfessionals;
+    const parsed = JSON.parse(raw) as Professional[];
+    return parsed.map((p) => ({
+      ...p,
+      blockedTimes: (p.blockedTimes ?? []).map((b, i) => ({
+        ...b,
+        id:
+          (b as BlockedTime).id ??
+          `mig-${p.id}-${(b as BlockedTime).date}-${(b as BlockedTime).start}-${i}`,
+      })),
+    }));
+  } catch {
+    return mockProfessionals;
+  }
+}
+
+function loadScheduleRemindersFromStorage(): ScheduleReminder[] {
+  try {
+    const raw = localStorage.getItem('weliv_schedule_reminders');
+    if (!raw) return [];
+    return JSON.parse(raw) as ScheduleReminder[];
+  } catch {
+    return [];
+  }
+}
 
 interface DataContextType {
   appointments: Appointment[];
@@ -9,7 +47,15 @@ interface DataContextType {
   payments: Payment[];
   professionals: Professional[];
   waitingList: WaitingListEntry[];
-  
+  scheduleReminders: ScheduleReminder[];
+
+  addProfessionalBlock: (professionalId: string, block: Omit<BlockedTime, 'id'>) => void;
+  removeProfessionalBlock: (professionalId: string, blockId: string) => void;
+  addScheduleReminder: (reminder: Omit<ScheduleReminder, 'id' | 'createdAt'>) => void;
+  removeScheduleReminder: (id: string) => void;
+
+  updateProfessional: (id: string, updates: Partial<Professional>) => void;
+
   // Appointments
   createAppointment: (appointment: Omit<Appointment, 'id' | 'createdAt'>) => Appointment;
   updateAppointment: (id: string, updates: Partial<Appointment>) => void;
@@ -37,8 +83,55 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [documents, setDocuments] = useState<Document[]>(mockDocuments);
   const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
   const [payments, setPayments] = useState<Payment[]>(mockPayments);
-  const [professionals] = useState<Professional[]>(mockProfessionals);
+  const [professionals, setProfessionals] = useState<Professional[]>(loadProfessionalsFromStorage);
   const [waitingList, setWaitingList] = useState<WaitingListEntry[]>([]);
+  const [scheduleReminders, setScheduleReminders] = useState<ScheduleReminder[]>(
+    loadScheduleRemindersFromStorage,
+  );
+
+  useEffect(() => {
+    localStorage.setItem('weliv_professionals', JSON.stringify(professionals));
+  }, [professionals]);
+
+  useEffect(() => {
+    localStorage.setItem('weliv_schedule_reminders', JSON.stringify(scheduleReminders));
+  }, [scheduleReminders]);
+
+  const addProfessionalBlock = (professionalId: string, block: Omit<BlockedTime, 'id'>) => {
+    const id = `blk-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    setProfessionals((prev) =>
+      prev.map((p) =>
+        p.id === professionalId ? { ...p, blockedTimes: [...p.blockedTimes, { ...block, id }] } : p,
+      ),
+    );
+  };
+
+  const removeProfessionalBlock = (professionalId: string, blockId: string) => {
+    setProfessionals((prev) =>
+      prev.map((p) =>
+        p.id === professionalId
+          ? { ...p, blockedTimes: p.blockedTimes.filter((b) => b.id !== blockId) }
+          : p,
+      ),
+    );
+  };
+
+  const addScheduleReminder = (reminder: Omit<ScheduleReminder, 'id' | 'createdAt'>) => {
+    const newItem: ScheduleReminder = {
+      ...reminder,
+      id: `rem-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      createdAt: new Date().toISOString(),
+    };
+    setScheduleReminders((prev) => [newItem, ...prev]);
+  };
+
+  const removeScheduleReminder = (id: string) => {
+    setScheduleReminders((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  const updateProfessional = (id: string, updates: Partial<Professional>) => {
+    setProfessionals((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
+  };
 
   // Persist to localStorage
   useEffect(() => {
@@ -173,7 +266,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setPayments(prev => [...prev, newPayment]);
   };
 
-  return (
+    return (
     <DataContext.Provider value={{
       appointments,
       documents,
@@ -181,6 +274,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       payments,
       professionals,
       waitingList,
+      scheduleReminders,
+      addProfessionalBlock,
+      removeProfessionalBlock,
+      addScheduleReminder,
+      removeScheduleReminder,
+      updateProfessional,
       createAppointment,
       updateAppointment,
       cancelAppointment,

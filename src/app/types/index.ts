@@ -18,6 +18,10 @@ export interface Patient extends User {
 
 export interface Professional extends User {
   role: 'professional';
+  /** Título ou destaque exibido no perfil (ex.: Dra., PhD, CRM). */
+  professionalTitle?: string;
+  /** Apresentação para pacientes (busca / perfil). */
+  biography?: string;
   cnpj?: string;
   address: string;
   registrationNumber: string;
@@ -46,11 +50,24 @@ export interface DaySchedule {
 }
 
 export interface BlockedTime {
+  id: string;
   date: string;
   start: string;
   end: string;
   reason: string;
 }
+
+/** Lembrete operacional na agenda do profissional (persistido localmente). */
+export interface ScheduleReminder {
+  id: string;
+  professionalId: string;
+  title: string;
+  remindAt: string;
+  note?: string;
+  createdAt: string;
+}
+
+export type PatientSlotStatus = 'available' | 'blocked' | 'booked';
 
 export interface Appointment {
   id: string;

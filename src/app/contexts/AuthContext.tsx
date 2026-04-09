@@ -7,6 +7,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   switchRole: (role: UserRole) => void;
+  /** Mescla campos no usuário logado e persiste em localStorage (demo). */
+  patchUser: (updates: Partial<User>) => void;
   isAuthenticated: boolean;
 }
 
@@ -52,12 +54,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const patchUser = (updates: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...updates };
+      localStorage.setItem('currentUser', JSON.stringify(next));
+      return next;
+    });
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
       login, 
       logout, 
       switchRole,
+      patchUser,
       isAuthenticated: !!user 
     }}>
       {children}

@@ -1,4 +1,15 @@
-import { User, Professional, Patient, Appointment, Document, Notification, Payment } from '../types';
+import { format } from 'date-fns';
+import {
+  User,
+  Professional,
+  Patient,
+  Appointment,
+  Document,
+  Notification,
+  Payment,
+  BlockedTime,
+  PatientSlotStatus,
+} from '../types';
 
 export const mockProfessionals: Professional[] = [
   {
@@ -8,6 +19,9 @@ export const mockProfessionals: Professional[] = [
     phone: '(11) 98765-4321',
     cpf: '123.456.789-00',
     role: 'professional',
+    professionalTitle: 'Dra. — CRM 123456 · Cardiologia clínica e preventiva',
+    biography:
+      'Cardiologista focada em prevenção e manejo de fatores de risco. Atendimento humanizado com explicação clara do plano terapêutico.',
     address: 'Av. Paulista, 1000 - São Paulo, SP',
     registrationNumber: 'CRM 123456',
     specialty: 'Cardiologia',
@@ -195,44 +209,92 @@ export const mockPayments: Payment[] = [
   },
 ];
 
-// Função para gerar horários disponíveis
-export function generateAvailableSlots(professional: Professional, date: Date): string[] {
+function parseTimeToMinutes(t: string): number {
+  if (t === '24:00') return 24 * 60;
+  const [h, m] = t.split(':').map(Number);
+  if (Number.isNaN(h)) return 0;
+  return h * 60 + (Number.isNaN(m) ? 0 : m);
+}
+
+/** Verifica se o intervalo do slot (30 min a partir de slotStart) sobrepõe um bloqueio. */
+export function isSlotBlocked(dateStr: string, slotStart: string, blocks: BlockedTime[]): boolean {
+  return blocks.some((b) => {
+    if (b.date !== dateStr) return false;
+    const slotStartM = parseTimeToMinutes(slotStart);
+    const slotEndM = slotStartM + 30;
+    const blockStartM = parseTimeToMinutes(b.start);
+    let blockEndM = parseTimeToMinutes(b.end);
+    if (blockEndM <= blockStartM && b.end !== '00:00') {
+      blockEndM += 24 * 60;
+    }
+    return slotStartM < blockEndM && slotEndM > blockStartM;
+  });
+}
+
+/** Todos os slots da grade do profissional na data (sem considerar bloqueios nem reservas). */
+export function getSlotsFromWeeklySchedule(professional: Professional, date: Date): string[] {
   const dayOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][date.getDay()];
   const schedule = professional.availableSchedule[dayOfWeek];
-  
+
   if (!schedule?.enabled) return [];
-  
+
   const slots: string[] = [];
   const [startHour, startMin] = schedule.start.split(':').map(Number);
   const [endHour, endMin] = schedule.end.split(':').map(Number);
-  
+
   let currentHour = startHour;
   let currentMin = startMin;
-  
+
   while (currentHour < endHour || (currentHour === endHour && currentMin < endMin)) {
     const timeStr = `${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}`;
-    
-    // Verifica se não está no horário de almoço
+
     if (schedule.lunchStart && schedule.lunchEnd) {
       const [lunchStartH, lunchStartM] = schedule.lunchStart.split(':').map(Number);
       const [lunchEndH, lunchEndM] = schedule.lunchEnd.split(':').map(Number);
-      
-      const isLunchTime = (currentHour > lunchStartH || (currentHour === lunchStartH && currentMin >= lunchStartM)) &&
-                         (currentHour < lunchEndH || (currentHour === lunchEndH && currentMin < lunchEndM));
-      
+
+      const isLunchTime =
+        (currentHour > lunchStartH || (currentHour === lunchStartH && currentMin >= lunchStartM)) &&
+        (currentHour < lunchEndH || (currentHour === lunchEndH && currentMin < lunchEndM));
+
       if (!isLunchTime) {
         slots.push(timeStr);
       }
     } else {
       slots.push(timeStr);
     }
-    
+
     currentMin += 30;
     if (currentMin >= 60) {
       currentMin = 0;
       currentHour++;
     }
   }
-  
+
   return slots;
+}
+
+/** Horários em que o paciente pode marcar (exclui bloqueios do profissional; reservas tratadas na tela). */
+export function generateAvailableSlots(professional: Professional, date: Date): string[] {
+  const dateStr = format(date, 'yyyy-MM-dd');
+  return getSlotsFromWeeklySchedule(professional, date).filter(
+    (s) => !isSlotBlocked(dateStr, s, professional.blockedTimes),
+  );
+}
+
+/** Grade completa para o fluxo do paciente: disponível, bloqueado pelo profissional ou já reservado. */
+export function getPatientSlotAvailability(
+  professional: Professional,
+  date: Date,
+  bookedTimes: string[],
+): { slot: string; status: PatientSlotStatus }[] {
+  const dateStr = format(date, 'yyyy-MM-dd');
+  return getSlotsFromWeeklySchedule(professional, date).map((slot) => {
+    if (isSlotBlocked(dateStr, slot, professional.blockedTimes)) {
+      return { slot, status: 'blocked' };
+    }
+    if (bookedTimes.includes(slot)) {
+      return { slot, status: 'booked' };
+    }
+    return { slot, status: 'available' };
+  });
 }

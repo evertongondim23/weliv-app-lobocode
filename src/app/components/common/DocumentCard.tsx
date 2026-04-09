@@ -27,6 +27,7 @@ export function DocumentCard({
     'Exame': '#3B82F6',
     'Receita': '#10B981',
     'Laudo': '#8B5CF6',
+    'Outro': '#6B5D53',
     'Atestado': '#F59E0B',
     'Relatório': '#EC4899',
   };
