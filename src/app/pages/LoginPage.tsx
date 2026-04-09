@@ -24,6 +24,9 @@ import {
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { WelivLogo } from '../components/WelivLogo';
 import { toast } from 'sonner';
+import { API_BASE_URL } from '../config/api';
+import { SEED_DEMO_LOGINS } from '../config/seed-logins';
+import type { UserRole } from '../types';
 
 const inputBorder = { borderColor: 'rgba(255, 165, 0, 0.25)' } as const;
 
@@ -34,41 +37,64 @@ const highlights = [
 ];
 
 export function LoginPage() {
-  const [email, setEmail] = useState('');
+  /** E-mail ou login — o mesmo valor vai no campo `login` do body enviado à API. */
+  const [loginIdentifier, setLoginIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
-  const getRedirectPath = (loginEmail: string) =>
-    loginEmail.trim().toLowerCase() === 'admin@weliv.com' ? '/admin/dashboard' : '/';
+
+  const getRedirectPath = (role: UserRole) => {
+    if (role === 'admin') return '/admin/dashboard';
+    if (role === 'professional') return '/professional/dashboard';
+    return '/patient/dashboard';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    const success = await login(email, password);
+    const result = await login({
+      login: loginIdentifier.trim(),
+      password,
+    });
 
     setIsLoading(false);
 
-    if (success) {
-      navigate(getRedirectPath(email));
+    if (result.ok) {
+      navigate(getRedirectPath(result.user.role));
+    } else if (result.reason === 'NETWORK_ERROR') {
+      setError(
+        `Não foi possível falar com ${API_BASE_URL} (rede, URL incorreta ou CORS).`,
+      );
     } else {
-      setError('Email ou senha inválidos');
+      setError('E-mail/login ou senha inválidos');
     }
   };
 
-  const handleDemoLogin = async (userEmail: string) => {
+  /** Payload idêntico ao formulário: { login, password } como no seed. */
+  const handleDemoLogin = async (loginValue: string, loginPassword: string) => {
     setError('');
     setIsLoading(true);
-    setEmail(userEmail);
-    setPassword('demo');
-    const success = await login(userEmail, 'demo');
+    setLoginIdentifier(loginValue);
+    setPassword(loginPassword);
+    const result = await login({
+      login: loginValue.trim(),
+      password: loginPassword,
+    });
     setIsLoading(false);
-    if (success) navigate(getRedirectPath(userEmail));
-    else setError('Não foi possível entrar no modo demo');
+    if (result.ok) {
+      navigate(getRedirectPath(result.user.role));
+    } else if (result.reason === 'NETWORK_ERROR') {
+      setError(
+        `Não foi possível falar com ${API_BASE_URL} (rede, URL ou CORS).`,
+      );
+    } else {
+      setError('E-mail/login ou senha inválidos (confira o seed na API).');
+    }
   };
 
   return (
@@ -202,8 +228,8 @@ export function LoginPage() {
                 )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-[#4A3728] font-medium">
-                    E-mail
+                  <Label htmlFor="login" className="text-[#4A3728] font-medium">
+                    E-mail ou login
                   </Label>
                   <div className="relative">
                     <Mail
@@ -211,13 +237,14 @@ export function LoginPage() {
                       aria-hidden
                     />
                     <Input
-                      id="email"
-                      type="email"
-                      autoComplete="email"
-                      placeholder="seu@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      id="login"
+                      type="text"
+                      autoComplete="username"
+                      placeholder="ex.: admin@weliv.com ou seu login"
+                      value={loginIdentifier}
+                      onChange={(e) => setLoginIdentifier(e.target.value)}
                       required
+                      minLength={1}
                       disabled={isLoading}
                       className="h-11 border-2 bg-white pl-10 transition-shadow focus-visible:ring-[#FFA500]/30"
                       style={inputBorder}
@@ -296,7 +323,7 @@ export function LoginPage() {
                 <button
                   type="button"
                   disabled={isLoading}
-                  onClick={() => handleDemoLogin('joao.santos@email.com')}
+                  onClick={() => handleDemoLogin(SEED_DEMO_LOGINS.patient.login, SEED_DEMO_LOGINS.patient.password)}
                   className="group flex flex-col items-center gap-2 rounded-2xl border-2 bg-white p-4 text-center transition-all hover:shadow-md hover:border-[#FFA500]/50 disabled:opacity-60"
                   style={{ borderColor: 'rgba(255, 165, 0, 0.2)' }}
                 >
@@ -317,7 +344,12 @@ export function LoginPage() {
                 <button
                   type="button"
                   disabled={isLoading}
-                  onClick={() => handleDemoLogin('ana.silva@clinica.com')}
+                  onClick={() =>
+                    handleDemoLogin(
+                      SEED_DEMO_LOGINS.professional.login,
+                      SEED_DEMO_LOGINS.professional.password,
+                    )
+                  }
                   className="group flex flex-col items-center gap-2 rounded-2xl border-2 bg-white p-4 text-center transition-all hover:shadow-md hover:border-[#FFA500]/50 disabled:opacity-60"
                   style={{ borderColor: 'rgba(255, 165, 0, 0.2)' }}
                 >
@@ -339,7 +371,12 @@ export function LoginPage() {
               <button
                 type="button"
                 disabled={isLoading}
-                onClick={() => handleDemoLogin('admin@weliv.com')}
+                onClick={() =>
+                  handleDemoLogin(
+                    SEED_DEMO_LOGINS.admin.login,
+                    SEED_DEMO_LOGINS.admin.password,
+                  )
+                }
                 className="mt-3 w-full group flex items-center justify-center gap-2 rounded-xl border-2 bg-white p-3 text-center transition-all hover:shadow-md hover:border-[#FFA500]/50 disabled:opacity-60"
                 style={{ borderColor: 'rgba(255, 165, 0, 0.2)' }}
               >
