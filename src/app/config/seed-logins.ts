@@ -1,6 +1,7 @@
 /**
  * Credenciais alinhadas ao prisma/seed.ts (weliv-api-lobocode).
- * O campo `login` é o mesmo enviado no payload POST /auth/login.
+ * O campo `login` é o mesmo enviado no body dos POST /auth/login,
+ * /auth/login/profissional e /auth/login/admin (consoante o perfil).
  */
 export const SEED_DEMO_LOGINS = {
   admin: {

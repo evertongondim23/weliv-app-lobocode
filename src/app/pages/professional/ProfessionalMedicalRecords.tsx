@@ -53,7 +53,7 @@ import {
   type MedicalRecord,
   type MedicalRecordWriteInput,
   type MedicationEntry,
-} from '../../services/medicalRecordService';
+} from '../../services/medicalRecord.service';
 
 const fieldClassName = 'border-2';
 const fieldStyle = { borderColor: 'rgba(255, 165, 0, 0.2)' } as const;

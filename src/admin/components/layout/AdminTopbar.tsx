@@ -18,7 +18,7 @@ export function AdminTopbar({ onOpenMobileMenu }: AdminTopbarProps) {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/login/admin');
   };
   const nowLabel = new Intl.DateTimeFormat('pt-BR', {
     weekday: 'short',

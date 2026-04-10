@@ -10,9 +10,11 @@ export function NotFoundPage() {
   const { user } = useAuth();
 
   const homePath = user
-    ? user.role === 'professional'
-      ? '/professional/dashboard'
-      : '/patient/dashboard'
+    ? user.role === 'admin'
+      ? '/admin/dashboard'
+      : user.role === 'professional'
+        ? '/professional/dashboard'
+        : '/patient/dashboard'
     : '/login';
 
   return (

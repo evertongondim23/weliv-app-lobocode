@@ -1,11 +1,11 @@
 import type { User, UserRole } from '../types';
 
 /** Converte role do Prisma/JWT para o modelo do app React. */
-export function mapBackendRoleToFrontend(role: string): UserRole {
+export function mapBackendRoleToFrontend(role: string): UserRole | null {
   if (role === 'SYSTEM_ADMIN' || role === 'ADMIN') return 'admin';
   if (role === 'PROFESSIONAL') return 'professional';
   if (role === 'PATIENT') return 'patient';
-  return 'patient';
+  return null;
 }
 
 export function decodeJwtPayload(token: string): Record<string, unknown> | null {
@@ -24,16 +24,28 @@ export function decodeJwtPayload(token: string): Record<string, unknown> | null 
   }
 }
 
+/**
+ * Considera expirado se não houver `exp` ou se estiver dentro da margem de segurança (segundos).
+ */
+export function isAccessTokenExpired(token: string, skewSeconds = 45): boolean {
+  const payload = decodeJwtPayload(token);
+  if (!payload || typeof payload.exp !== 'number') return true;
+  const now = Math.floor(Date.now() / 1000);
+  return payload.exp <= now + skewSeconds;
+}
+
 export function buildUserFromAccessToken(accessToken: string): User | null {
   const payload = decodeJwtPayload(accessToken);
   if (!payload || typeof payload.sub !== 'string') return null;
   const roleStr = typeof payload.role === 'string' ? payload.role : '';
+  const role = mapBackendRoleToFrontend(roleStr);
+  if (!role) return null;
   return {
     id: payload.sub,
     name: typeof payload.name === 'string' ? payload.name : '',
     email: typeof payload.email === 'string' ? payload.email : '',
     phone: '',
     cpf: '',
-    role: mapBackendRoleToFrontend(roleStr),
+    role,
   };
 }

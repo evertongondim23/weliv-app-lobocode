@@ -32,7 +32,7 @@ import {
   type AdminAttendance,
   type AttendanceSla,
   type AttendanceStatus,
-} from '../services/attendanceService';
+} from '../services/attendance.service';
 
 const border = { borderColor: 'rgba(255, 165, 0, 0.2)' } as const;
 const primaryAction = { background: 'linear-gradient(135deg, #FFA500, #FF8C00)' } as const;

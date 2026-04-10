@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBrowserRouter, Navigate } from 'react-router';
 import { LoginPage } from './pages/LoginPage';
+import { CadastroPage } from './pages/CadastroPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { RouteErrorPage } from './pages/RouteErrorPage';
 import { Layout } from './components/Layout';
@@ -30,6 +31,8 @@ import { AdminAppointmentsPage } from '../admin/pages/AdminAppointmentsPage';
 import { AdminPendingPage } from '../admin/pages/AdminPendingPage';
 import { AdminUnitsServicesPage } from '../admin/pages/AdminUnitsServicesPage';
 import { AdminSystemSettingsPage } from '../admin/pages/AdminSystemSettingsPage';
+import { GuestOnlyRoute } from './components/auth/guest-only-route';
+import { HomeRoleRedirect } from './components/auth/home-role-redirect';
 import { adminNavGroups } from '../admin/config/navigation';
 import {
   adminAdministrationQuickMetrics,
@@ -139,8 +142,39 @@ export const router = createBrowserRouter([
     ],
   },
   {
+    path: '/cadastro',
+    element: (
+      <GuestOnlyRoute>
+        <CadastroPage />
+      </GuestOnlyRoute>
+    ),
+    errorElement: <RouteErrorPage />,
+  },
+  {
     path: '/login',
-    element: <LoginPage />,
+    element: (
+      <GuestOnlyRoute>
+        <LoginPage portal="patient" />
+      </GuestOnlyRoute>
+    ),
+    errorElement: <RouteErrorPage />,
+  },
+  {
+    path: '/login/profissional',
+    element: (
+      <GuestOnlyRoute>
+        <LoginPage portal="professional" />
+      </GuestOnlyRoute>
+    ),
+    errorElement: <RouteErrorPage />,
+  },
+  {
+    path: '/login/admin',
+    element: (
+      <GuestOnlyRoute>
+        <LoginPage portal="admin" />
+      </GuestOnlyRoute>
+    ),
     errorElement: <RouteErrorPage />,
   },
   {
@@ -148,9 +182,9 @@ export const router = createBrowserRouter([
     element: <Layout />,
     errorElement: <RouteErrorPage />,
     children: [
-      {
+           {
         index: true,
-        element: <Navigate to="/patient/dashboard" replace />,
+        element: <HomeRoleRedirect />,
       },
       // Patient Routes
       {

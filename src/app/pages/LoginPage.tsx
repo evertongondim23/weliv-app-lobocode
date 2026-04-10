@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -20,23 +20,105 @@ import {
   Calendar,
   FileText,
   Bell,
+  Users,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { WelivLogo } from '../components/WelivLogo';
 import { toast } from 'sonner';
 import { API_BASE_URL } from '../config/api';
 import { SEED_DEMO_LOGINS } from '../config/seed-logins';
 import type { UserRole } from '../types';
+import type { LoginPortal } from '../lib/auth-routes';
+import { loginPathForPortal } from '../lib/auth-routes';
 
 const inputBorder = { borderColor: 'rgba(255, 165, 0, 0.25)' } as const;
 
-const highlights = [
+const PATIENT_HIGHLIGHTS = [
   { icon: Calendar, text: 'Agenda e consultas em um só lugar' },
   { icon: FileText, text: 'Documentos e histórico sempre à mão' },
   { icon: Bell, text: 'Lembretes para você não perder nada' },
 ];
 
-export function LoginPage() {
+const PROFESSIONAL_HIGHLIGHTS = [
+  { icon: Calendar, text: 'Agenda e disponibilidade centralizadas' },
+  { icon: Users, text: 'Pacientes e prontuário na mesma vista' },
+  { icon: FileText, text: 'Documentação alinhada à sua prática' },
+];
+
+const ADMIN_HIGHLIGHTS = [
+  { icon: ShieldCheck, text: 'Visão operacional e financeira' },
+  { icon: Users, text: 'Utilizadores, unidades e permissões' },
+  { icon: FileText, text: 'Auditoria e relatórios' },
+];
+
+const PORTAL_UI: Record<
+  LoginPortal,
+  {
+    heroBadge: string;
+    titleMain: string;
+    titleAccent: string;
+    heroSubtitle: string;
+    cardEyebrow: string;
+    cardDescription: string;
+  }
+> = {
+  patient: {
+    heroBadge: 'Cuidado com a sua saúde, em um só lugar',
+    titleMain: 'Sua clínica,',
+    titleAccent: 'organizada.',
+    heroSubtitle:
+      'Agendamentos, documentos e comunicação — tudo com a cara acolhedora do weliv.',
+    cardEyebrow: 'Bem-vindo de volta',
+    cardDescription:
+      'Entre na sua conta para gerenciar consultas, documentos e sua agenda.',
+  },
+  professional: {
+    heroBadge: 'Gestão da sua prática clínica',
+    titleMain: 'Seu consultório,',
+    titleAccent: 'no controle.',
+    heroSubtitle: 'Agenda, pacientes e registros num único painel profissional.',
+    cardEyebrow: 'Área do profissional',
+    cardDescription: 'Acesse com as credenciais do seu perfil de saúde.',
+  },
+  admin: {
+    heroBadge: 'Governança da plataforma',
+    titleMain: 'Administração',
+    titleAccent: 'weliv.',
+    heroSubtitle: 'Métricas, utilizadores e parâmetros do sistema.',
+    cardEyebrow: 'Acesso administrativo',
+    cardDescription: 'Utilize uma conta com perfil de administrador.',
+  },
+};
+
+function highlightsForPortal(portal: LoginPortal) {
+  if (portal === 'professional') return PROFESSIONAL_HIGHLIGHTS;
+  if (portal === 'admin') return ADMIN_HIGHLIGHTS;
+  return PATIENT_HIGHLIGHTS;
+}
+
+const OTHER_PORTAL_LINKS: {
+  id: LoginPortal;
+  label: string;
+  Icon: LucideIcon;
+}[] = [
+  { id: 'patient', label: 'Paciente', Icon: User },
+  { id: 'professional', label: 'Profissional de saúde', Icon: Stethoscope },
+  { id: 'admin', label: 'Administração', Icon: ShieldCheck },
+];
+
+/** Rótulos curtos para os botões inline (mesma largura). */
+const PORTAL_LINK_SHORT_LABEL: Record<LoginPortal, string> = {
+  patient: 'Paciente',
+  professional: 'Profissional',
+  admin: 'Admin',
+};
+
+type LoginPageProps = {
+  portal: LoginPortal;
+};
+
+export function LoginPage({ portal }: LoginPageProps) {
   /** E-mail ou login — o mesmo valor vai no campo `login` do body enviado à API. */
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -45,6 +127,17 @@ export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const ui = PORTAL_UI[portal];
+  const highlights = highlightsForPortal(portal);
+
+  useEffect(() => {
+    const st = location.state as { registered?: boolean } | null;
+    if (st?.registered) {
+      toast.success('Conta criada. Faça login com seu e-mail ou login e senha.');
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, location.pathname, navigate]);
 
   const getRedirectPath = (role: UserRole) => {
     if (role === 'admin') return '/admin/dashboard';
@@ -57,10 +150,13 @@ export function LoginPage() {
     setError('');
     setIsLoading(true);
 
-    const result = await login({
-      login: loginIdentifier.trim(),
-      password,
-    });
+    const result = await login(
+      {
+        login: loginIdentifier.trim(),
+        password,
+      },
+      portal,
+    );
 
     setIsLoading(false);
 
@@ -69,6 +165,11 @@ export function LoginPage() {
     } else if (result.reason === 'NETWORK_ERROR') {
       setError(
         `Não foi possível falar com ${API_BASE_URL} (rede, URL incorreta ou CORS).`,
+      );
+    } else if (result.reason === 'WRONG_PORTAL') {
+      setError(
+        result.message ??
+          'Este perfil não corresponde a este portal de entrada. Utilize o link correto.',
       );
     } else {
       setError('E-mail/login ou senha inválidos');
@@ -81,16 +182,21 @@ export function LoginPage() {
     setIsLoading(true);
     setLoginIdentifier(loginValue);
     setPassword(loginPassword);
-    const result = await login({
-      login: loginValue.trim(),
-      password: loginPassword,
-    });
+    const result = await login(
+      { login: loginValue.trim(), password: loginPassword },
+      portal,
+    );
     setIsLoading(false);
     if (result.ok) {
       navigate(getRedirectPath(result.user.role));
     } else if (result.reason === 'NETWORK_ERROR') {
       setError(
         `Não foi possível falar com ${API_BASE_URL} (rede, URL ou CORS).`,
+      );
+    } else if (result.reason === 'WRONG_PORTAL') {
+      setError(
+        result.message ??
+          'Este perfil não corresponde a este portal de entrada. Utilize o link correto.',
       );
     } else {
       setError('E-mail/login ou senha inválidos (confira o seed na API).');
@@ -136,17 +242,17 @@ export function LoginPage() {
             style={{ borderColor: 'rgba(255, 165, 0, 0.3)', color: '#6B5D53' }}
           >
             <Sparkles className="size-3.5 text-[#FFA500]" aria-hidden />
-            Cuidado com a sua saúde, em um só lugar
+            {ui.heroBadge}
           </div>
 
           <div className="space-y-4">
             <WelivLogo size="lg" showText />
             <h1 className="text-3xl xl:text-4xl font-bold leading-tight tracking-tight" style={{ color: '#4A3728' }}>
-              Sua clínica,{' '}
-              <span style={{ color: '#FFA500' }}>organizada.</span>
+              {ui.titleMain}{' '}
+              <span style={{ color: '#FFA500' }}>{ui.titleAccent}</span>
             </h1>
             <p className="text-lg leading-relaxed" style={{ color: '#6B5D53' }}>
-              Agendamentos, documentos e comunicação com pacientes — tudo com a cara acolhedora do weliv.
+              {ui.heroSubtitle}
             </p>
           </div>
 
@@ -186,7 +292,7 @@ export function LoginPage() {
             }}
           >
             <Sparkles className="size-3.5 text-[#FFA500]" aria-hidden />
-            Cuidado com a sua saúde, em um só lugar
+            {ui.heroBadge}
           </div>
         </div>
 
@@ -206,10 +312,10 @@ export function LoginPage() {
                   className="text-sm font-semibold uppercase tracking-wide"
                   style={{ color: '#FFA500' }}
                 >
-                  Bem-vindo de volta
+                  {ui.cardEyebrow}
                 </p>
                 <CardDescription className="text-base leading-relaxed" style={{ color: '#6B5D53' }}>
-                  Entre na sua conta para gerenciar consultas, documentos e sua agenda.
+                  {ui.cardDescription}
                 </CardDescription>
               </div>
             </CardHeader>
@@ -240,7 +346,7 @@ export function LoginPage() {
                       id="login"
                       type="text"
                       autoComplete="username"
-                      placeholder="ex.: admin@weliv.com ou seu login"
+                      placeholder="ex.: exemplo@email.com ou seu login"
                       value={loginIdentifier}
                       onChange={(e) => setLoginIdentifier(e.target.value)}
                       required
@@ -306,6 +412,15 @@ export function LoginPage() {
                 >
                   {isLoading ? 'Entrando…' : 'Entrar'}
                 </Button>
+
+                {portal === 'patient' && (
+                  <p className="text-center text-sm pt-1" style={{ color: '#6B5D53' }}>
+                    Ainda não tem conta?{' '}
+                    <Link to="/cadastro" className="font-medium text-[#FFA500] hover:underline">
+                      Criar conta
+                    </Link>
+                  </p>
+                )}
               </form>
 
               <div className="relative my-8">
@@ -319,12 +434,17 @@ export function LoginPage() {
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              {portal === 'patient' && (
                 <button
                   type="button"
                   disabled={isLoading}
-                  onClick={() => handleDemoLogin(SEED_DEMO_LOGINS.patient.login, SEED_DEMO_LOGINS.patient.password)}
-                  className="group flex flex-col items-center gap-2 rounded-2xl border-2 bg-white p-4 text-center transition-all hover:shadow-md hover:border-[#FFA500]/50 disabled:opacity-60"
+                  onClick={() =>
+                    handleDemoLogin(
+                      SEED_DEMO_LOGINS.patient.login,
+                      SEED_DEMO_LOGINS.patient.password,
+                    )
+                  }
+                  className="group flex w-full flex-col items-center gap-2 rounded-2xl border-2 bg-white p-4 text-center transition-all hover:shadow-md hover:border-[#FFA500]/50 disabled:opacity-60"
                   style={{ borderColor: 'rgba(255, 165, 0, 0.2)' }}
                 >
                   <div
@@ -334,13 +454,15 @@ export function LoginPage() {
                     <User className="size-5 text-[#FFA500]" aria-hidden />
                   </div>
                   <span className="text-sm font-semibold" style={{ color: '#4A3728' }}>
-                    Paciente
+                    Conta de demonstração
                   </span>
                   <span className="text-xs leading-tight" style={{ color: '#6B5D53' }}>
-                    Ver fluxo do paciente
+                    Carregar credenciais de teste e explorar o app
                   </span>
                 </button>
+              )}
 
+              {portal === 'professional' && (
                 <button
                   type="button"
                   disabled={isLoading}
@@ -350,7 +472,7 @@ export function LoginPage() {
                       SEED_DEMO_LOGINS.professional.password,
                     )
                   }
-                  className="group flex flex-col items-center gap-2 rounded-2xl border-2 bg-white p-4 text-center transition-all hover:shadow-md hover:border-[#FFA500]/50 disabled:opacity-60"
+                  className="group flex w-full flex-col items-center gap-2 rounded-2xl border-2 bg-white p-4 text-center transition-all hover:shadow-md hover:border-[#FFA500]/50 disabled:opacity-60"
                   style={{ borderColor: 'rgba(255, 165, 0, 0.2)' }}
                 >
                   <div
@@ -360,31 +482,76 @@ export function LoginPage() {
                     <Stethoscope className="size-5 text-[#FFA500]" aria-hidden />
                   </div>
                   <span className="text-sm font-semibold" style={{ color: '#4A3728' }}>
-                    Profissional
+                    Demonstração — profissional
                   </span>
                   <span className="text-xs leading-tight" style={{ color: '#6B5D53' }}>
                     Painel da clínica
                   </span>
                 </button>
-              </div>
+              )}
 
-              <button
-                type="button"
-                disabled={isLoading}
-                onClick={() =>
-                  handleDemoLogin(
-                    SEED_DEMO_LOGINS.admin.login,
-                    SEED_DEMO_LOGINS.admin.password,
-                  )
-                }
-                className="mt-3 w-full group flex items-center justify-center gap-2 rounded-xl border-2 bg-white p-3 text-center transition-all hover:shadow-md hover:border-[#FFA500]/50 disabled:opacity-60"
-                style={{ borderColor: 'rgba(255, 165, 0, 0.2)' }}
-              >
-                <ShieldCheck className="size-4 text-[#FFA500]" aria-hidden />
-                <span className="text-sm font-semibold" style={{ color: '#4A3728' }}>
-                  Acesso Administrador
-                </span>
-              </button>
+              {portal === 'admin' && (
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() =>
+                    handleDemoLogin(
+                      SEED_DEMO_LOGINS.admin.login,
+                      SEED_DEMO_LOGINS.admin.password,
+                    )
+                  }
+                  className="group flex w-full flex-col items-center gap-2 rounded-2xl border-2 bg-white p-4 text-center transition-all hover:shadow-md hover:border-[#FFA500]/50 disabled:opacity-60"
+                  style={{ borderColor: 'rgba(255, 165, 0, 0.2)' }}
+                >
+                  <div
+                    className="flex size-11 items-center justify-center rounded-xl transition-transform group-hover:scale-105"
+                    style={{ background: 'linear-gradient(135deg, #FFF8E7, #FFE5B4)' }}
+                  >
+                    <ShieldCheck className="size-5 text-[#FFA500]" aria-hidden />
+                  </div>
+                  <span className="text-sm font-semibold" style={{ color: '#4A3728' }}>
+                    Demonstração — administrador
+                  </span>
+                  <span className="text-xs leading-tight" style={{ color: '#6B5D53' }}>
+                    Painel administrativo
+                  </span>
+                </button>
+              )}
+
+              <div className="mt-6">
+                <p
+                  className="mb-2.5 text-center text-[11px] font-semibold uppercase tracking-[0.1em]"
+                  style={{ color: '#4A3728' }}
+                >
+                  Outro tipo de acesso
+                </p>
+                <nav
+                  className="flex w-full flex-row flex-nowrap gap-2"
+                  aria-label="Outros portais de entrada"
+                >
+                  {OTHER_PORTAL_LINKS.filter((p) => p.id !== portal).map(
+                    ({ id, label, Icon }) => (
+                      <Link
+                        key={id}
+                        to={loginPathForPortal(id)}
+                        title={label}
+                        className="flex min-h-[48px] flex-1 basis-0 items-center justify-center gap-2 rounded-xl border-2 bg-transparent px-3 text-sm font-semibold outline-none transition-colors hover:border-[#FF8C00] hover:text-[#C45A00] focus-visible:ring-2 focus-visible:ring-[#FFA500]/50 focus-visible:ring-offset-2"
+                        style={{
+                          borderColor: 'rgba(255, 140, 0, 0.55)',
+                          color: '#4A3728',
+                        }}
+                      >
+                        <Icon
+                          className="size-4 shrink-0 text-[#E07800]"
+                          strokeWidth={2.25}
+                          aria-hidden
+                        />
+                        <span className="truncate">{PORTAL_LINK_SHORT_LABEL[id]}</span>
+                      </Link>
+                    ),
+                  )}
+                </nav>
+              </div>
 
               <p className="mt-6 text-center text-xs leading-relaxed" style={{ color: '#6B5D53' }}>
                 Ao continuar, você concorda com os termos de uso da demonstração.

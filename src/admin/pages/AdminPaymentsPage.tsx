@@ -25,7 +25,7 @@ import {
   type PaymentConciliationStatus,
   type PaymentGateway,
   type PaymentMethod,
-} from '../services/paymentReconciliationService';
+} from '../services/paymentReconciliation.service';
 
 const statusConfig: Record<
   PaymentConciliationStatus,

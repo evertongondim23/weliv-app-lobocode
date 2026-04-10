@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router';
+import { Outlet, useNavigate, useLocation, Navigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
+import { loginPathForUserRole } from '../lib/auth-routes';
 import { useData } from '../contexts/DataContext';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -29,11 +30,45 @@ interface NavItem {
 }
 
 export function Layout() {
-  const { user, logout } = useAuth();
+  const { user, logout, authReady, isAuthenticated } = useAuth();
   const { notifications } = useData();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  if (!authReady) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center text-sm"
+        style={{ background: '#FAFAFA', color: '#6B5D53' }}
+        aria-busy="true"
+      >
+        Carregando…
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !user) {
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: `${location.pathname}${location.search}` }}
+      />
+    );
+  }
+
+  if (user.role === 'admin') {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  const path = location.pathname;
+  if (path.startsWith('/patient') && user.role !== 'patient') {
+    return <Navigate to="/professional/dashboard" replace />;
+  }
+  if (path.startsWith('/professional') && user.role !== 'professional') {
+    return <Navigate to="/patient/dashboard" replace />;
+  }
 
   const unreadCount = notifications.filter(n => n.userId === user?.id && !n.read).length;
 
@@ -60,8 +95,9 @@ export function Layout() {
     : navItems.filter(item => item.path !== '/patient/notifications');
 
   const handleLogout = () => {
+    const role = user?.role;
     logout();
-    navigate('/login');
+    navigate(role ? loginPathForUserRole(role) : '/login');
   };
 
   const NavLink = ({ item, mobile = false }: { item: NavItem; mobile?: boolean }) => {

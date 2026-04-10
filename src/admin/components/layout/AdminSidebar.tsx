@@ -20,7 +20,7 @@ export function AdminSidebar({ onNavigate }: AdminSidebarProps) {
   const handleLogout = () => {
     logout();
     onNavigate?.();
-    navigate('/login');
+    navigate('/login/admin');
   };
 
   return (
