@@ -32,7 +32,7 @@ import { AdminFinancialSubnav } from '../components/finance/AdminFinancialSubnav
 import { PaymentMethodCell } from '../components/finance/PaymentMethodCell';
 import { PageHeader } from '../components/common/PageHeader';
 import { DataTable, type DataTableColumn } from '../components/tables/DataTable';
-import { getChargePortfolioSummary, listCharges, type ChargeRow } from '../services/chargeService';
+import { getChargePortfolioSummary, listCharges, type ChargeRow } from '../services/charge.service';
 import {
   getDefaultRiskSummary,
   listDefaultCases,
@@ -40,7 +40,7 @@ import {
   type DefaultRiskLevel,
   type PlanKind,
   type RecoveryStage,
-} from '../services/defaultRiskService';
+} from '../services/defaultRisk.service';
 import { formatBRL } from '../utils/formatCurrency';
 import { financeBorderStyle, financeFilterChipStyle, financePrimaryActionStyle } from '../utils/financeUi';
 

@@ -49,6 +49,10 @@
   --sidebar-accent-foreground: #4A3728;
 }
 
+button {
+  cursor: pointer;
+}
+
 /* Custom animations and transitions */
 .hover\:scale-102:hover {
   transform: scale(1.02);

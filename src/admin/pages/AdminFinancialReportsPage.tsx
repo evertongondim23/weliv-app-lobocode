@@ -37,7 +37,7 @@ import {
   reportPeriodOptions,
   type FinancialReportRow,
   type ReportCategory,
-} from '../services/financialReportsService';
+} from '../services/financialReports.service';
 
 function formatPct(value: number | null, digits = 1) {
   if (value === null || Number.isNaN(value)) return '—';

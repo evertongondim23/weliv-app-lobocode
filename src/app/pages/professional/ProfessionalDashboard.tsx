@@ -94,7 +94,7 @@ export function ProfessionalDashboard() {
 
   const quickActions = [
     { icon: Calendar, label: 'Ver Agenda Completa', path: '/professional/schedule', color: '#FFA500' },
-    { icon: Users, label: 'Cadastrar Novo Paciente', path: '/professional/patients', color: '#FFC700' },
+    { icon: Users, label: 'Gerenciar Pacientes', path: '/professional/patients', color: '#FFC700' },
     { icon: DollarSign, label: 'Relatórios Financeiros', path: '/professional/financial', color: '#FFC700' },
     { icon: Clock, label: 'Configurar Horários', path: '/professional/settings', color: '#FF8C00' },
   ];

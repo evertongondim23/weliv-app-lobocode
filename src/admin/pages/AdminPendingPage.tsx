@@ -31,7 +31,7 @@ import {
   type PendingPriority,
   type PendingStatus,
   type PendingType,
-} from '../services/pendingService';
+} from '../services/pending.service';
 
 const priorityMeta: Record<PendingPriority, { label: string; color: string; bg: string }> = {
   high: { label: 'Crítica', color: '#dc2626', bg: 'rgba(220, 38, 38, 0.1)' },
