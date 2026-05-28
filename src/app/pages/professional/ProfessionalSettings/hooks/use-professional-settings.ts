@@ -3,6 +3,14 @@ import type { ChangeEvent } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useData } from '../../../../contexts/DataContext';
+import { uploadProfileImage } from '../../../../services/files.service';
+import {
+  getMyProfessionalProfile,
+  patchMyProfessionalProfile,
+  type ProfessionalProfile,
+  type UpdateProfessionalProfilePayload,
+} from '../../../../services/professionals.service';
+import { getMyProviderSettings, type ProviderSettings } from '../../../../services/providerSettings.service';
 import type { DaySchedule } from '../../../../types';
 import {
   AVATAR_MAX_BYTES,
@@ -30,11 +38,43 @@ const EMPTY_PROFILE: ProfileFormData = {
   biography: '',
 };
 
+function normalizePrice(value: ProviderSettings['consultationPrice']): string {
+  if (typeof value === 'number' && Number.isFinite(value)) return value.toFixed(2);
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed.toFixed(2);
+  }
+  return '0.00';
+}
+
+function normalizeDepositPercentage(value: ProviderSettings['depositPercentage']): DepositPercentage {
+  if (value === 10) return '10';
+  if (value === 30) return '30';
+  if (value === 100) return '100';
+  return '0';
+}
+
+function mapProfileFromApi(profile: ProfessionalProfile): ProfileFormData {
+  return {
+    name: profile.name ?? '',
+    phone: profile.phone ?? '',
+    cpf: profile.cpf ?? '',
+    cnpj: profile.cnpj ?? profile.professionalCnpj ?? '',
+    email: profile.email ?? '',
+    address: profile.address ?? profile.professionalAddress ?? '',
+    registrationNumber: profile.registrationNumber ?? '',
+    specialty: profile.specialty ?? '',
+    professionalTitle: profile.professionalTitle ?? '',
+    biography: profile.biography ?? '',
+  };
+}
+
 export function useProfessionalSettings() {
   const { user, authReady, patchUser } = useAuth();
   const { professionals, updateProfessional } = useData();
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const localAvatarBlobRef = useRef<string | null>(null);
+  const pendingAvatarFileRef = useRef<File | null>(null);
 
   const professional = professionals.find((p) => p.id === user?.id);
 
@@ -59,22 +99,65 @@ export function useProfessionalSettings() {
   }, [user?.id]);
 
   useEffect(() => {
-    if (!professional || profileHydrated) return;
-    setProfileData({
-      name: professional.name,
-      phone: professional.phone,
-      cpf: professional.cpf,
-      cnpj: professional.cnpj ?? '',
-      email: professional.email,
-      address: professional.address,
-      registrationNumber: professional.registrationNumber,
-      specialty: professional.specialty,
-      professionalTitle: professional.professionalTitle ?? '',
-      biography: professional.biography ?? '',
+    if (!authReady || user?.role !== 'professional' || profileHydrated) return;
+
+    let cancelled = false;
+
+    void getMyProfessionalProfile().then((result) => {
+      if (cancelled) return;
+
+      if (result.ok) {
+        setProfileData(mapProfileFromApi(result.data));
+        setAvatarUrl(result.data.avatarUrl ?? '');
+        setProfileHydrated(true);
+        return;
+      }
+
+      if (professional) {
+        setProfileData({
+          name: professional.name,
+          phone: professional.phone,
+          cpf: professional.cpf,
+          cnpj: professional.cnpj ?? '',
+          email: professional.email,
+          address: professional.address,
+          registrationNumber: professional.registrationNumber,
+          specialty: professional.specialty,
+          professionalTitle: professional.professionalTitle ?? '',
+          biography: professional.biography ?? '',
+        });
+        setAvatarUrl(professional.avatar ?? '');
+        setProfileHydrated(true);
+      }
     });
-    setAvatarUrl(professional.avatar ?? '');
-    setProfileHydrated(true);
-  }, [professional, profileHydrated]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authReady, user?.role, profileHydrated, professional]);
+
+  useEffect(() => {
+    if (!authReady || user?.role !== 'professional') return;
+
+    let cancelled = false;
+
+    void getMyProviderSettings().then((result) => {
+      if (cancelled || !result.ok) return;
+
+      const settings = result.data;
+      setConsultationPrice(normalizePrice(settings.consultationPrice));
+      setAcceptsInsurance(settings.acceptsInsurance ?? false);
+      setInsurances(Array.isArray(settings.insurances) ? settings.insurances : []);
+      setRemarcationEnabled(settings.remarcationEnabled ?? false);
+      setRemarcationLimit(String(settings.remarcationLimit ?? 0));
+      setDepositPercentage(normalizeDepositPercentage(settings.depositPercentage));
+      setWaitingListEnabled(settings.waitingListEnabled ?? false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authReady, user?.role]);
 
   const handleAvatarFile = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -93,6 +176,7 @@ export function useProfessionalSettings() {
     }
     const url = URL.createObjectURL(file);
     localAvatarBlobRef.current = url;
+    pendingAvatarFileRef.current = file;
     setAvatarUrl(url);
     toast.success('Foto atualizada na pré-visualização. Salve para confirmar.');
   };
@@ -102,11 +186,12 @@ export function useProfessionalSettings() {
       URL.revokeObjectURL(localAvatarBlobRef.current);
       localAvatarBlobRef.current = null;
     }
+    pendingAvatarFileRef.current = null;
     setAvatarUrl('');
     toast.info('Foto removida na pré-visualização. Salve para confirmar.');
   };
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     if (!user || user.role !== 'professional') {
       toast.error('Faça login como profissional.');
       return;
@@ -124,25 +209,82 @@ export function useProfessionalSettings() {
       return;
     }
 
-    updateProfessional(user.id, {
+    const payload: UpdateProfessionalProfilePayload = {
       name: profileData.name.trim(),
-      phone: profileData.phone.trim(),
-      cpf: profileData.cpf.trim(),
       email: profileData.email.trim(),
-      cnpj: profileData.cnpj.trim() || undefined,
+      cpf: profileData.cpf.trim(),
+      phone: profileData.phone.trim(),
+      cnpj: profileData.cnpj.trim(),
       address: profileData.address.trim(),
       registrationNumber: profileData.registrationNumber.trim(),
       specialty: profileData.specialty.trim(),
-      professionalTitle: profileData.professionalTitle.trim() || undefined,
-      biography: profileData.biography.trim() || undefined,
-      avatar: avatarUrl || undefined,
+      professionalTitle: profileData.professionalTitle.trim(),
+      biography: profileData.biography.trim(),
+    };
+
+    let avatarUrlToSave = avatarUrl.trim();
+
+    if (pendingAvatarFileRef.current) {
+      const uploadResult = await uploadProfileImage(pendingAvatarFileRef.current);
+      if (!uploadResult.ok) {
+        if (uploadResult.kind === 'unauthorized') {
+          toast.error('Sessão expirada. Faça login novamente.');
+        } else if (uploadResult.kind === 'network') {
+          toast.error('Não foi possível enviar a foto.');
+        } else {
+          toast.error(uploadResult.message ?? 'Não foi possível enviar a foto.');
+        }
+        return;
+      }
+
+      avatarUrlToSave = uploadResult.data.url;
+      if (localAvatarBlobRef.current?.startsWith('blob:')) {
+        URL.revokeObjectURL(localAvatarBlobRef.current);
+        localAvatarBlobRef.current = null;
+      }
+      pendingAvatarFileRef.current = null;
+      setAvatarUrl(avatarUrlToSave);
+    }
+
+    payload.avatarUrl = avatarUrlToSave;
+
+    const result = await patchMyProfessionalProfile(payload);
+
+    if (!result.ok) {
+      if (result.kind === 'unauthorized') {
+        toast.error('Sessão expirada. Faça login novamente.');
+      } else if (result.kind === 'network') {
+        toast.error('Não foi possível conectar à API.');
+      } else {
+        toast.error(result.message ?? 'Não foi possível salvar o perfil.');
+      }
+      return;
+    }
+
+    const saved = result.data;
+    setProfileData(mapProfileFromApi(saved));
+    setAvatarUrl(saved.avatarUrl ?? '');
+
+    updateProfessional(user.id, {
+      name: saved.name,
+      phone: saved.phone ?? '',
+      cpf: saved.cpf ?? '',
+      email: saved.email,
+      cnpj: saved.cnpj ?? saved.professionalCnpj ?? undefined,
+      address: saved.address ?? saved.professionalAddress ?? '',
+      registrationNumber: saved.registrationNumber ?? '',
+      specialty: saved.specialty ?? '',
+      professionalTitle: saved.professionalTitle ?? undefined,
+      biography: saved.biography ?? undefined,
+      avatar: saved.avatarUrl || undefined,
     });
     patchUser({
-      name: profileData.name.trim(),
-      phone: profileData.phone.trim(),
-      email: profileData.email.trim(),
-      avatar: avatarUrl || undefined,
+      name: saved.name,
+      phone: saved.phone ?? '',
+      email: saved.email,
+      avatar: saved.avatarUrl || undefined,
     });
+
     toast.success('Perfil público e dados cadastrais salvos.');
   };
 
