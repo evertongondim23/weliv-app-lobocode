@@ -10,6 +10,11 @@ import {
   ScheduleReminder,
 } from '../types';
 import { mockAppointments, mockDocuments, mockNotifications, mockPayments, mockProfessionals } from '../data/mockData';
+import { useAuth } from './AuthContext';
+import {
+  createProfessionalFromUser,
+  mergeProfessionalWithAuthUser,
+} from '../lib/professional-profile';
 
 function loadProfessionalsFromStorage(): Professional[] {
   try {
@@ -79,6 +84,7 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: ReactNode }) {
+  const { user, authReady } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>(mockAppointments);
   const [documents, setDocuments] = useState<Document[]>(mockDocuments);
   const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
@@ -92,6 +98,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('weliv_professionals', JSON.stringify(professionals));
   }, [professionals]);
+
+  /** Login API usa `user.id` (cuid); mocks usam `prof1`… — garante perfil local para o profissional logado. */
+  useEffect(() => {
+    if (!authReady || !user || user.role !== 'professional') return;
+
+    setProfessionals((prev) => {
+      const existing = prev.find((p) => p.id === user.id);
+      if (!existing) {
+        return [...prev, createProfessionalFromUser(user)];
+      }
+      const merged = mergeProfessionalWithAuthUser(existing, user);
+      if (
+        merged.name === existing.name &&
+        merged.email === existing.email &&
+        merged.phone === existing.phone &&
+        merged.cpf === existing.cpf &&
+        merged.avatar === existing.avatar
+      ) {
+        return prev;
+      }
+      return prev.map((p) => (p.id === user.id ? merged : p));
+    });
+  }, [authReady, user]);
 
   useEffect(() => {
     localStorage.setItem('weliv_schedule_reminders', JSON.stringify(scheduleReminders));

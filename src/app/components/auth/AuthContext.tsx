@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const patchUser = (updates: Partial<User>) => {
     setUser((prev) => {
-      if (!prev) return prev;
+            if (!prev) return prev;
       const { role: _stripRole, id: _stripId, ...safe } = updates;
       const next = { ...prev, ...safe };
       localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(next));
