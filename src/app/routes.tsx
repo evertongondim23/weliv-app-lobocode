@@ -19,6 +19,15 @@ import { ProfessionalMedicalRecords } from './pages/professional/ProfessionalMed
 import { ProfessionalSettings } from './pages/professional/ProfessionalSettings';
 import { AdminAppShell } from '../admin/components/layout/AdminAppShell';
 import { AdminRouteGuard } from '../admin/components/layout/AdminRouteGuard';
+import { ClinicAppShell } from '../clinic/components/layout/ClinicAppShell';
+import { ClinicRouteGuard } from '../clinic/components/layout/ClinicRouteGuard';
+import { ClinicDashboard } from '../clinic/pages/ClinicDashboard';
+import { ClinicProfessionals } from '../clinic/pages/ClinicProfessionals';
+import { ClinicSchedule } from '../clinic/pages/ClinicSchedule';
+import { ClinicPatients } from '../clinic/pages/ClinicPatients';
+import { ClinicFinancial } from '../clinic/pages/ClinicFinancial';
+import { ClinicUnits } from '../clinic/pages/ClinicUnits';
+import { ClinicSettings } from '../clinic/pages/ClinicSettings';
 import { AdminOverviewDashboardPage } from '../admin/pages/AdminOverviewDashboard';
 import { AdminFinancialReportsPage } from '../admin/pages/AdminFinancialReports';
 import { AdminModuleLandingPage } from '../admin/pages/AdminModuleLanding';
@@ -44,6 +53,25 @@ import {
 } from '../admin/mocks/adminData';
 
 export const router = createBrowserRouter([
+  {
+    path: '/clinic',
+    element: (
+      <ClinicRouteGuard>
+        <ClinicAppShell />
+      </ClinicRouteGuard>
+    ),
+    errorElement: <RouteErrorPage />,
+    children: [
+      { index: true, element: <Navigate to="/clinic/dashboard" replace /> },
+      { path: 'dashboard', element: <ClinicDashboard /> },
+      { path: 'professionals', element: <ClinicProfessionals /> },
+      { path: 'schedule', element: <ClinicSchedule /> },
+      { path: 'patients', element: <ClinicPatients /> },
+      { path: 'financial', element: <ClinicFinancial /> },
+      { path: 'units', element: <ClinicUnits /> },
+      { path: 'settings', element: <ClinicSettings /> },
+    ],
+  },
   {
     path: '/admin',
     element: (
@@ -155,6 +183,15 @@ export const router = createBrowserRouter([
     element: (
       <GuestOnlyRoute>
         <LoginPage portal="patient" />
+      </GuestOnlyRoute>
+    ),
+    errorElement: <RouteErrorPage />,
+  },
+  {
+    path: '/login/clinica',
+    element: (
+      <GuestOnlyRoute>
+        <LoginPage portal="clinic" />
       </GuestOnlyRoute>
     ),
     errorElement: <RouteErrorPage />,

@@ -3,11 +3,11 @@ import { Navigate, useLocation } from 'react-router';
 import { useAuth } from '../../../app/contexts/AuthContext';
 import { dashboardPathForRole } from '../../../app/lib/auth-routes';
 
-type AdminRouteGuardProps = {
+type ClinicRouteGuardProps = {
   children: React.ReactNode;
 };
 
-export function AdminRouteGuard({ children }: AdminRouteGuardProps) {
+export function ClinicRouteGuard({ children }: ClinicRouteGuardProps) {
   const { user, isAuthenticated, authReady } = useAuth();
   const location = useLocation();
 
@@ -24,10 +24,10 @@ export function AdminRouteGuard({ children }: AdminRouteGuardProps) {
   }
 
   if (!isAuthenticated || !user) {
-    return <Navigate to="/login/admin" replace state={{ from: location.pathname }} />;
+    return <Navigate to="/login/clinica" replace state={{ from: location.pathname }} />;
   }
 
-  if (user.role !== 'system_admin') {
+  if (user.role !== 'clinic_admin') {
     return <Navigate to={dashboardPathForRole(user.role)} replace />;
   }
 

@@ -58,8 +58,11 @@ export function Layout() {
     );
   }
 
-  if (user.role === 'admin') {
+  if (user.role === 'system_admin') {
     return <Navigate to="/admin/dashboard" replace />;
+  }
+  if (user.role === 'clinic_admin') {
+    return <Navigate to="/clinic/dashboard" replace />;
   }
 
   const path = location.pathname;

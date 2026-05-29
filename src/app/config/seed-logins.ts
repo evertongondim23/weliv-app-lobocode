@@ -8,6 +8,11 @@ export const SEED_DEMO_LOGINS = {
     login: 'admin@weliv.com',
     password: 'AdminWeliv123',
   },
+  /** Gestor de clínica — role ADMIN no seed da API. */
+  clinic_admin: {
+    login: 'gestorWeliv',
+    password: 'GestorWeliv123',
+  },
   professional: {
     login: 'ana.silva@clinica.com',
     password: 'AnaSilva123',

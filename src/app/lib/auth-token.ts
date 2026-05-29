@@ -2,7 +2,8 @@ import type { User, UserRole } from '../types';
 
 /** Converte role do Prisma/JWT para o modelo do app React. */
 export function mapBackendRoleToFrontend(role: string): UserRole | null {
-  if (role === 'SYSTEM_ADMIN' || role === 'ADMIN') return 'admin';
+  if (role === 'SYSTEM_ADMIN') return 'system_admin';
+  if (role === 'ADMIN') return 'clinic_admin';
   if (role === 'PROFESSIONAL') return 'professional';
   if (role === 'PATIENT') return 'patient';
   return null;

@@ -21,6 +21,9 @@ import {
   FileText,
   Bell,
   Users,
+  Building2,
+  BarChart3,
+  ClipboardList,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Alert, AlertDescription } from '../components/ui/alert';
@@ -52,6 +55,12 @@ const ADMIN_HIGHLIGHTS = [
   { icon: FileText, text: 'Auditoria e relatórios' },
 ];
 
+const CLINIC_HIGHLIGHTS = [
+  { icon: Building2, text: 'Gestão da equipe e agenda da clínica' },
+  { icon: BarChart3, text: 'Indicadores financeiros e de operação' },
+  { icon: ClipboardList, text: 'Pacientes e prontuários centralizados' },
+];
+
 const PORTAL_UI: Record<
   LoginPortal,
   {
@@ -81,6 +90,14 @@ const PORTAL_UI: Record<
     cardEyebrow: 'Área do profissional',
     cardDescription: 'Acesse com as credenciais do seu perfil de saúde.',
   },
+  clinic: {
+    heroBadge: 'Gestão completa da sua clínica',
+    titleMain: 'Sua clínica,',
+    titleAccent: 'em ordem.',
+    heroSubtitle: 'Equipe, agenda consolidada e financeiro — tudo num painel pensado para gestores.',
+    cardEyebrow: 'Portal do gestor',
+    cardDescription: 'Acesse com as credenciais de administrador da clínica.',
+  },
   admin: {
     heroBadge: 'Governança da plataforma',
     titleMain: 'Administração',
@@ -94,6 +111,7 @@ const PORTAL_UI: Record<
 function highlightsForPortal(portal: LoginPortal) {
   if (portal === 'professional') return PROFESSIONAL_HIGHLIGHTS;
   if (portal === 'admin') return ADMIN_HIGHLIGHTS;
+  if (portal === 'clinic') return CLINIC_HIGHLIGHTS;
   return PATIENT_HIGHLIGHTS;
 }
 
@@ -104,6 +122,7 @@ const OTHER_PORTAL_LINKS: {
 }[] = [
   { id: 'patient', label: 'Paciente', Icon: User },
   { id: 'professional', label: 'Profissional de saúde', Icon: Stethoscope },
+  { id: 'clinic', label: 'Gestor de clínica', Icon: Building2 },
   { id: 'admin', label: 'Administração', Icon: ShieldCheck },
 ];
 
@@ -111,6 +130,7 @@ const OTHER_PORTAL_LINKS: {
 const PORTAL_LINK_SHORT_LABEL: Record<LoginPortal, string> = {
   patient: 'Paciente',
   professional: 'Profissional',
+  clinic: 'Clínica',
   admin: 'Admin',
 };
 
@@ -140,7 +160,8 @@ export function LoginPage({ portal }: LoginPageProps) {
   }, [location.state, location.pathname, navigate]);
 
   const getRedirectPath = (role: UserRole) => {
-    if (role === 'admin') return '/admin/dashboard';
+    if (role === 'system_admin') return '/admin/dashboard';
+    if (role === 'clinic_admin') return '/clinic/dashboard';
     if (role === 'professional') return '/professional/dashboard';
     return '/patient/dashboard';
   };
@@ -486,6 +507,34 @@ export function LoginPage({ portal }: LoginPageProps) {
                   </span>
                   <span className="text-xs leading-tight" style={{ color: '#6B5D53' }}>
                     Painel da clínica
+                  </span>
+                </button>
+              )}
+
+              {portal === 'clinic' && (
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() =>
+                    handleDemoLogin(
+                      SEED_DEMO_LOGINS.clinic_admin.login,
+                      SEED_DEMO_LOGINS.clinic_admin.password,
+                    )
+                  }
+                  className="group flex w-full flex-col items-center gap-2 rounded-2xl border-2 bg-white p-4 text-center transition-all hover:shadow-md hover:border-[#FFA500]/50 disabled:opacity-60"
+                  style={{ borderColor: 'rgba(255, 165, 0, 0.2)' }}
+                >
+                  <div
+                    className="flex size-11 items-center justify-center rounded-xl transition-transform group-hover:scale-105"
+                    style={{ background: 'linear-gradient(135deg, #FFF8E7, #FFE5B4)' }}
+                  >
+                    <Building2 className="size-5 text-[#FFA500]" aria-hidden />
+                  </div>
+                  <span className="text-sm font-semibold" style={{ color: '#4A3728' }}>
+                    Demonstração — gestor de clínica
+                  </span>
+                  <span className="text-xs leading-tight" style={{ color: '#6B5D53' }}>
+                    Painel da clínica (requer role ADMIN na API)
                   </span>
                 </button>
               )}
