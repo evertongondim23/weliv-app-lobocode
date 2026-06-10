@@ -4,6 +4,7 @@ import type { LoginPortal } from '../../lib/auth-routes';
 const AUTH_LOGIN_PATHS: Record<LoginPortal, string> = {
   patient: '/auth/login',
   professional: '/auth/login/profissional',
+  clinic: '/auth/login/admin',
   admin: '/auth/login/admin',
 };
 

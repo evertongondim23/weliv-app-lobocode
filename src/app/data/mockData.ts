@@ -125,7 +125,7 @@ export const mockAdmins: User[] = [
     email: 'admin@weliv.com',
     phone: '(11) 90000-0000',
     cpf: '000.000.000-00',
-    role: 'admin',
+    role: 'system_admin',
     avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&h=400&fit=crop',
   },
 ];

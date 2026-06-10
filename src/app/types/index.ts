@@ -1,4 +1,20 @@
-export type UserRole = 'patient' | 'professional' | 'admin';
+export type UserRole = 'patient' | 'professional' | 'clinic_admin' | 'system_admin';
+
+/** Informações básicas da clínica (tenant) vindas do JWT ou da API. */
+export interface CompanyInfo {
+  id: string;
+  name: string;
+  /** Unidades/filiais disponíveis. Vazio = clínica simples (sem UnitSelector). */
+  units: CompanyUnit[];
+}
+
+export interface CompanyUnit {
+  id: string;
+  name: string;
+  code?: string;
+  address?: string;
+  isActive: boolean;
+}
 
 export interface User {
   id: string;
