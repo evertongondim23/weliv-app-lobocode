@@ -11,7 +11,7 @@
 
   ## Mobile preview
 
-  - **Cursor / VS Code — Mobile Preview (Phone & Tablet Simulator):** extensão `lirobi.phone-preview` (recomendada neste projeto via `.vscode/extensions.json`). Com o dev server a correr (`npm run dev` ou `npm run dev:mobile`), abra a **Paleta de comandos** (`Cmd+Shift+P` / `Ctrl+Shift+P`) e procure **Mobile Preview** ou **Phone Preview** para abrir o painel; escolha um dispositivo (iPhone, Android, iPad). A extensão costuma detetar o URL do Vite (ex.: `http://localhost:5173`) — confirme se bate com o porto que o terminal mostra.
+  - **Cursor / VS Code — Mobile Preview (Phone & Tablet Simulator):** extensão `lirobi.phone-preview` (recomendada neste projeto via `.vscode/extensions.json`). Com o dev server a correr (`npm run dev` ou `npm run dev:mobile`), abra a **Paleta de comandos** (`Cmd+Shift+P` / `Ctrl+Shift+P`) e procure **Mobile Preview** ou **Phone Preview** para abrir o painel; escolha um dispositivo (iPhone, Android, iPad). A extensão costuma detetar o URL do Vite (ex.: `http://localhost:3000`) — confirme se bate com o porto que o terminal mostra.
   - **Browser:** use o modo dispositivo das DevTools (Chrome/Edge: `Cmd+Shift+M` no macOS, `Ctrl+Shift+M` no Windows/Linux).
   - **Telemóvel real (mesma Wi‑Fi):** `npm run dev:mobile`. No telemóvel abra o URL **Network** que o Vite imprime (ex.: `http://192.168.x.x:5173`). Liberte a porta do Vite na firewall se for preciso (por defeito `5173`).
   

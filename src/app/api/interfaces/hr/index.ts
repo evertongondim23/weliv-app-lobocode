@@ -1,0 +1,89 @@
+/**
+ * UI / form model for HR users.
+ * Alinhado com o backend Weliv: USER, ADMIN, SYSTEM_ADMIN
+ */
+export interface StaffUser {
+  id?: string;
+  name: string;
+  email: string;
+  login?: string;
+  password?: string;
+  phone?: string;
+  cpf?: string;
+  birthDate?: string;
+  hireDate?: string;
+  terminationDate?: string;
+  role: 'USER' | 'ADMIN' | 'SYSTEM_ADMIN';
+  salary?: number;
+  status: 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'ON_LEAVE' | 'TERMINATED';
+  rg?: string;
+  profilePicture?: string;
+  address?: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    complement?: string;
+  };
+  documents?: Record<string, unknown>;
+  benefits?: string[];
+}
+
+/** Alias para codigo legado; preferir {@link StaffUser}. */
+export type Usuario = StaffUser;
+
+export interface CreateUsersDTO {
+  name: string;
+  email: string;
+  login: string;
+  password: string;
+  role: 'USER' | 'ADMIN' | 'SYSTEM_ADMIN';
+  status: 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'ON_LEAVE' | 'TERMINATED';
+  phone?: string;
+  cpf?: string;
+  rg?: string;
+  profilePicture?: string;
+  birthDate?: string;
+  hireDate?: string;
+  terminationDate?: string;
+  salary?: number;
+  address?: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    complement?: string;
+  };
+  documents?: Record<string, unknown>;
+  benefits?: string[];
+}
+
+export interface UsersBackend {
+  id: string;
+  name: string;
+  email: string;
+  login: string;
+  cpf?: string | null;
+  rg?: string | null;
+  phone?: string | null;
+  birthDate?: string | null;
+  hireDate?: string | null;
+  terminationDate?: string | null;
+  salary?: number | null;
+  role: 'USER' | 'ADMIN' | 'SYSTEM_ADMIN';
+  status: 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'ON_LEAVE' | 'TERMINATED';
+  profilePicture?: string | null;
+  address?: Record<string, unknown> | null;
+  documents?: Record<string, unknown> | null;
+  benefits?: string[] | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null;
+}
+
+export interface DriverUser {
+  id: string;
+  name: string;
+  email: string;
+  role: 'USER';
+}
